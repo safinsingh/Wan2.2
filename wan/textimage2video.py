@@ -10,8 +10,8 @@ from contextlib import contextmanager
 from functools import partial
 
 import torch
-import torch.cuda.amp as amp
 import torch.distributed as dist
+import torch_xla.core.xla_model as xm
 import torchvision.transforms.functional as TF
 from PIL import Image
 from tqdm import tqdm
@@ -72,7 +72,7 @@ class WanTI2V:
                 Convert DiT model parameters dtype to 'config.param_dtype'.
                 Only works without FSDP.
         """
-        self.device = torch.device(f"cuda:{device_id}")
+        self.device = xm.xla_device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu
@@ -327,7 +327,7 @@ class WanTI2V:
 
         # evaluation mode
         with (
-                torch.amp.autocast('cuda', dtype=self.param_dtype),
+                torch.amp.autocast('xla', dtype=self.param_dtype),
                 torch.no_grad(),
                 no_sync(),
         ):
@@ -362,7 +362,7 @@ class WanTI2V:
 
             if offload_model or self.init_on_cpu:
                 self.model.to(self.device)
-                torch.cuda.empty_cache()
+                xm.mark_step()
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = latents
@@ -395,8 +395,8 @@ class WanTI2V:
             x0 = latents
             if offload_model:
                 self.model.cpu()
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
+                xm.mark_step()
+                xm.mark_step()
             if self.rank == 0:
                 videos = self.vae.decode(x0)
 
@@ -404,7 +404,7 @@ class WanTI2V:
         del sample_scheduler
         if offload_model:
             gc.collect()
-            torch.cuda.synchronize()
+            xm.mark_step()
         if dist.is_initialized():
             dist.barrier()
 
@@ -519,7 +519,7 @@ class WanTI2V:
 
         # evaluation mode
         with (
-                torch.amp.autocast('cuda', dtype=self.param_dtype),
+                torch.amp.autocast('xla', dtype=self.param_dtype),
                 torch.no_grad(),
                 no_sync(),
         ):
@@ -562,7 +562,7 @@ class WanTI2V:
 
             if offload_model or self.init_on_cpu:
                 self.model.to(self.device)
-                torch.cuda.empty_cache()
+                xm.mark_step()
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = [latent.to(self.device)]
@@ -580,11 +580,11 @@ class WanTI2V:
                 noise_pred_cond = self.model(
                     latent_model_input, t=timestep, **arg_c)[0]
                 if offload_model:
-                    torch.cuda.empty_cache()
+                    xm.mark_step()
                 noise_pred_uncond = self.model(
                     latent_model_input, t=timestep, **arg_null)[0]
                 if offload_model:
-                    torch.cuda.empty_cache()
+                    xm.mark_step()
                 noise_pred = noise_pred_uncond + guide_scale * (
                     noise_pred_cond - noise_pred_uncond)
 
@@ -602,8 +602,8 @@ class WanTI2V:
 
             if offload_model:
                 self.model.cpu()
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
+                xm.mark_step()
+                xm.mark_step()
 
             if self.rank == 0:
                 videos = self.vae.decode(x0)
@@ -612,7 +612,7 @@ class WanTI2V:
         del sample_scheduler
         if offload_model:
             gc.collect()
-            torch.cuda.synchronize()
+            xm.mark_step()
         if dist.is_initialized():
             dist.barrier()
 

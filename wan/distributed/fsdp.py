@@ -3,6 +3,7 @@ import gc
 from functools import partial
 
 import torch
+import torch_xla.core.xla_model as xm
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision, ShardingStrategy
 from torch.distributed.fsdp.wrap import lambda_auto_wrap_policy
@@ -42,4 +43,4 @@ def free_model(model):
             _free_storage(m._handle.flat_param.data)
     del model
     gc.collect()
-    torch.cuda.empty_cache()
+    xm.mark_step()

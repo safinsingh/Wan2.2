@@ -9,6 +9,7 @@ from functools import partial
 from einops import rearrange
 import numpy as np
 import torch
+import torch_xla.core.xla_model as xm
 
 import torch.distributed as dist
 from peft import set_peft_model_state_dict
@@ -77,7 +78,7 @@ class WanAnimate:
             use_relighting_lora (`bool`, *optional*, defaults to False):
                Whether to use relighting lora for character replacement. 
         """
-        self.device = torch.device(f"cuda:{device_id}")
+        self.device = xm.xla_device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu
@@ -223,7 +224,7 @@ class WanAnimate:
         return target_len
 
 
-    def get_i2v_mask(self, lat_t, lat_h, lat_w, mask_len=1, mask_pixel_values=None, device="cuda"):
+    def get_i2v_mask(self, lat_t, lat_h, lat_w, mask_len=1, mask_pixel_values=None, device="xla"):
         if mask_pixel_values is None:
             msk = torch.zeros(1, (lat_t-1) * 4 + 1, lat_h, lat_w, device=device)
         else:
@@ -479,7 +480,7 @@ class WanAnimate:
                 raise ValueError(f"max_seq_len {max_seq_len} is not divisible by sp_size {self.sp_size}")
 
             with (
-                torch.autocast(device_type=str(self.device), dtype=torch.bfloat16, enabled=True),
+                torch.autocast(device_type='xla', dtype=torch.bfloat16, enabled=True),
                 torch.no_grad()
             ):
                 if sample_solver == 'unipc':
