@@ -6,16 +6,13 @@ if [ "${1:-}" = "--clean" ]; then
     rm -rf .venv
 fi
 
-# ── Python 3.11 (3.10–3.12 all supported for PyTorch NeuronX 2.9) ─
-if ! command -v python3.11 &>/dev/null; then
-    echo "Installing Python 3.11..."
-    sudo apt-get update
-    sudo apt-get install -y python3.11 python3.11-venv
-fi
+# ── Ensure python3-venv is available ─────────────────────────
+sudo apt-get update -qq
+sudo apt-get install -y -qq python3-venv
 
 # ── Create venv (skip if exists) ─────────────────────────────
 if [ ! -d ".venv" ]; then
-    python3.11 -m venv .venv
+    python3 -m venv .venv
     source .venv/bin/activate
     pip install --upgrade pip
 
