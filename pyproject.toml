@@ -27,7 +27,7 @@ dependencies = [
     "ftfy",
     "dashscope",
     "imageio-ffmpeg",
-    "numpy>=1.23.5,<2"
+    "numpy>=2.0.0"
 ]
 
 [project.optional-dependencies]
