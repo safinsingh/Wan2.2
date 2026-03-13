@@ -15,38 +15,48 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 
-# ── Step 1: CPU-only PyTorch (no NVIDIA junk) ────────────────
-# --index-url points ONLY at the PyTorch CPU wheel index,
-# so torch + torchvision come without CUDA/NVIDIA libs.
-pip install torch torchvision \
+# ── Step 1: CPU-only PyTorch 2.9 (no NVIDIA) ────────────────
+# Pin to 2.9.* — that's what torch-neuronx requires.
+# --index-url = CPU wheel index only, no CUDA libs.
+pip install "torch==2.9.*" "torchvision==0.24.*" \
     --index-url https://download.pytorch.org/whl/cpu
 
-# ── Step 2: Neuron SDK ───────────────────────────────────────
-# torch is already installed from step 1 and satisfies
-# torch-neuronx's "torch==2.X.*" requirement, so pip won't
-# re-download the CUDA torch from PyPI.
-# --extra-index-url adds the Neuron repo alongside PyPI so
-# neuronx-cc's deps (islpy, etc.) can resolve from either.
-pip install torch-neuronx neuronx-cc \
-    --extra-index-url https://pip.repos.neuron.amazonaws.com
-
-# ── Step 3: Guarantee Neuron-built torch-xla ─────────────────
-# Step 2 may have pulled torch-xla from PyPI (generic build,
-# causes GLIBC errors) instead of the Neuron repo. This forces
-# the Neuron build. --index-url = Neuron repo ONLY, --no-deps
-# so it doesn't drag in anything else.
-pip install torch-xla --no-deps --force-reinstall \
+# ── Step 2: torch-neuronx (--no-deps to prevent CUDA torch) ─
+pip install "torch-neuronx==2.9.0.2.12.22436+0f1dac25" --no-deps \
     --index-url https://pip.repos.neuron.amazonaws.com
 
-# ── Step 4: App dependencies ─────────────────────────────────
+# ── Step 3: neuronx-cc ──────────────────────────────────────
+# Needs --extra-index-url so its deps (islpy etc.) resolve from PyPI.
+pip install neuronx-cc \
+    --extra-index-url https://pip.repos.neuron.amazonaws.com
+
+# ── Step 4: torch-neuronx's other deps ──────────────────────
+# We skipped deps in step 2, so install them manually.
+# libneuronxla is the Neuron XLA runtime (provides _XLAC).
+pip install libneuronxla \
+    --extra-index-url https://pip.repos.neuron.amazonaws.com
+
+# ── Step 5: App dependencies ────────────────────────────────
 pip install -r requirements.txt
 
 # ── Verify ───────────────────────────────────────────────────
+echo ""
+echo "=== Installed packages ==="
+pip list | grep -iE "torch|neuron|xla|numpy"
+echo ""
+echo "=== Checking no NVIDIA packages ==="
+pip list | grep -i nvidia && echo "WARNING: NVIDIA packages found!" || echo "Clean — no NVIDIA packages."
+echo ""
 python -c "
 import torch
-import torch_xla
+print(f'torch: {torch.__version__}')
+try:
+    import torch_xla
+    print(f'torch-xla: {torch_xla.__version__}')
+except ImportError:
+    print('torch_xla: provided by libneuronxla')
 import torch_xla.core.xla_model as xm
-print(f'torch:     {torch.__version__}')
-print(f'torch-xla: {torch_xla.__version__}')
-print('Setup complete.')
+print('XLA model loaded successfully.')
 "
+echo ""
+echo "Setup complete."
