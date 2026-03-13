@@ -6,7 +6,7 @@ from sam2.utils.misc import *
 from PIL import Image
 import numpy as np
 import torch
-import torch_xla.core.xla_model as xm
+import torch_xla
 from tqdm import tqdm
 import os
 
@@ -78,9 +78,9 @@ def load_video_frames(
     for n, img_path in enumerate(tqdm(img_paths, desc="frame loading (JPEG)")):
         images[n], video_height, video_width = _load_img_as_tensor(img_path, image_size)
     if not offload_video_to_cpu:
-        images = images.to(xm.xla_device())
-        img_mean = img_mean.to(xm.xla_device())
-        img_std = img_std.to(xm.xla_device())
+        images = images.to(torch_xla.device())
+        img_mean = img_mean.to(torch_xla.device())
+        img_std = img_std.to(torch_xla.device())
     # normalize by mean and std
     images -= img_mean
     images /= img_std
@@ -112,9 +112,9 @@ def load_video_frames_v2(
     for n, frame in enumerate(tqdm(frames, desc="video frame")):
         images[n], video_height, video_width = _load_img_v2_as_tensor(frame, image_size)
     if not offload_video_to_cpu:
-        images = images.to(xm.xla_device())
-        img_mean = img_mean.to(xm.xla_device())
-        img_std = img_std.to(xm.xla_device())
+        images = images.to(torch_xla.device())
+        img_mean = img_mean.to(torch_xla.device())
+        img_std = img_std.to(torch_xla.device())
     # normalize by mean and std
     images -= img_mean
     images /= img_std

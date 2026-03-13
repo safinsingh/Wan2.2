@@ -6,7 +6,7 @@ if [ "${1:-}" = "--clean" ]; then
     rm -rf .venv
 fi
 
-# ── Python 3.11 (neuronx-cc has no cp312 wheels) ────────────
+# ── Python 3.11 (3.10–3.12 all supported for PyTorch NeuronX 2.9) ─
 if ! command -v python3.11 &>/dev/null; then
     echo "Installing Python 3.11..."
     sudo yum install -y python3.11 python3.11-pip
@@ -51,10 +51,10 @@ echo ""
 python -c "
 import torch
 import torch_xla
-import torch_xla.core.xla_model as xm
 print(f'torch:     {torch.__version__}')
 print(f'torch-xla: {torch_xla.__version__}')
-print('XLA model loaded successfully.')
+dev = torch_xla.device()
+print(f'XLA device: {dev}')
 "
 echo ""
 echo "============================================"

@@ -12,7 +12,7 @@ from functools import partial
 import numpy as np
 import torch
 import torch.distributed as dist
-import torch_xla.core.xla_model as xm
+import torch_xla
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
@@ -71,7 +71,7 @@ class WanI2V:
                 Convert DiT model parameters dtype to 'config.param_dtype'.
                 Only works without FSDP.
         """
-        self.device = xm.xla_device()
+        self.device = torch_xla.device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu
@@ -377,7 +377,7 @@ class WanI2V:
             }
 
             if offload_model:
-                xm.mark_step()
+                torch_xla.sync()
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = [latent.to(self.device)]
@@ -393,11 +393,11 @@ class WanI2V:
                 noise_pred_cond = model(
                     latent_model_input, t=timestep, **arg_c)[0]
                 if offload_model:
-                    xm.mark_step()
+                    torch_xla.sync()
                 noise_pred_uncond = model(
                     latent_model_input, t=timestep, **arg_null)[0]
                 if offload_model:
-                    xm.mark_step()
+                    torch_xla.sync()
                 noise_pred = noise_pred_uncond + sample_guide_scale * (
                     noise_pred_cond - noise_pred_uncond)
 
@@ -415,7 +415,7 @@ class WanI2V:
             if offload_model:
                 self.low_noise_model.cpu()
                 self.high_noise_model.cpu()
-                xm.mark_step()
+                torch_xla.sync()
 
             if self.rank == 0:
                 videos = self.vae.decode(x0)
@@ -424,7 +424,7 @@ class WanI2V:
         del sample_scheduler
         if offload_model:
             gc.collect()
-            xm.mark_step()
+            torch_xla.sync()
         if dist.is_initialized():
             dist.barrier()
 

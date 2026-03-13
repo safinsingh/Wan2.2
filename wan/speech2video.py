@@ -13,7 +13,7 @@ from functools import partial
 import numpy as np
 import torch
 import torch.distributed as dist
-import torch_xla.core.xla_model as xm
+import torch_xla
 import torchvision.transforms.functional as TF
 from decord import VideoReader
 from PIL import Image
@@ -85,7 +85,7 @@ class WanS2V:
                 Convert DiT model parameters dtype to 'config.param_dtype'.
                 Only works without FSDP.
         """
-        self.device = xm.xla_device()
+        self.device = torch_xla.device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu
@@ -612,7 +612,7 @@ class WanS2V:
                     }
                 if offload_model or self.init_on_cpu:
                     self.noise_model.to(self.device)
-                    xm.mark_step()
+                    torch_xla.sync()
 
                 for i, t in enumerate(tqdm(timesteps)):
                     latent_model_input = latents[0:1]
@@ -643,8 +643,8 @@ class WanS2V:
 
                 if offload_model:
                     self.noise_model.cpu()
-                    xm.mark_step()
-                    xm.mark_step()
+                    torch_xla.sync()
+                    torch_xla.sync()
                 latents = torch.stack(latents)
                 if not (drop_first_motion and r == 0):
                     decode_latents = torch.cat([motion_latents, latents], dim=2)
@@ -672,7 +672,7 @@ class WanS2V:
         del sample_scheduler
         if offload_model:
             gc.collect()
-            xm.mark_step()
+            torch_xla.sync()
         if dist.is_initialized():
             dist.barrier()
 

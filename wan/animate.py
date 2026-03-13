@@ -9,7 +9,7 @@ from functools import partial
 from einops import rearrange
 import numpy as np
 import torch
-import torch_xla.core.xla_model as xm
+import torch_xla
 
 import torch.distributed as dist
 from peft import set_peft_model_state_dict
@@ -78,7 +78,7 @@ class WanAnimate:
             use_relighting_lora (`bool`, *optional*, defaults to False):
                Whether to use relighting lora for character replacement. 
         """
-        self.device = xm.xla_device()
+        self.device = torch_xla.device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu

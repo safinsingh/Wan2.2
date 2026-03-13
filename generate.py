@@ -12,7 +12,7 @@ import random
 
 import torch
 import torch.distributed as dist
-import torch_xla.core.xla_model as xm
+import torch_xla
 import torch_xla.distributed.xla_backend
 from PIL import Image
 
@@ -563,7 +563,7 @@ def generate(args):
                 merge_video_audio(video_path=args.save_file, audio_path="tts.wav")
     del video
 
-    xm.mark_step()
+    torch_xla.sync()
     if dist.is_initialized():
         dist.barrier()
         dist.destroy_process_group()

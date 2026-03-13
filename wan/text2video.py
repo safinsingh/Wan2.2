@@ -11,7 +11,7 @@ from functools import partial
 
 import torch
 import torch.distributed as dist
-import torch_xla.core.xla_model as xm
+import torch_xla
 from tqdm import tqdm
 
 from .distributed.fsdp import shard_model
@@ -69,7 +69,7 @@ class WanT2V:
                 Convert DiT model parameters dtype to 'config.param_dtype'.
                 Only works without FSDP.
         """
-        self.device = xm.xla_device()
+        self.device = torch_xla.device()
         self.config = config
         self.rank = rank
         self.t5_cpu = t5_cpu
@@ -363,7 +363,7 @@ class WanT2V:
             if offload_model:
                 self.low_noise_model.cpu()
                 self.high_noise_model.cpu()
-                xm.mark_step()
+                torch_xla.sync()
             if self.rank == 0:
                 videos = self.vae.decode(x0)
 
@@ -371,7 +371,7 @@ class WanT2V:
         del sample_scheduler
         if offload_model:
             gc.collect()
-            xm.mark_step()
+            torch_xla.sync()
         if dist.is_initialized():
             dist.barrier()
 
