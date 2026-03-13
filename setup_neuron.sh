@@ -9,7 +9,8 @@ fi
 # ── Python 3.11 (3.10–3.12 all supported for PyTorch NeuronX 2.9) ─
 if ! command -v python3.11 &>/dev/null; then
     echo "Installing Python 3.11..."
-    sudo yum install -y python3.11 python3.11-pip
+    sudo apt-get update
+    sudo apt-get install -y python3.11 python3.11-venv
 fi
 
 # ── Create venv (skip if exists) ─────────────────────────────
