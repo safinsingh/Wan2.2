@@ -21,15 +21,24 @@ fi
 # under an older version tag. This shim re-exports them as 2.35.
 if [ ! -f "$SHIM_SO" ]; then
     mkdir -p "$SHIM_DIR"
-    cat > "$SHIM_DIR/glibc235_shim.c" << 'EOF'
+    cat > "$SHIM_DIR/glibc235_shim.c" << 'CEOF'
 #include <math.h>
-__asm__(".symver hypot_shim, hypot@GLIBC_2.35");
-double hypot_shim(double x, double y) { return hypot(x, y); }
-__asm__(".symver hypotf_shim, hypotf@GLIBC_2.35");
-float hypotf_shim(float x, float y) { return hypotf(x, y); }
-EOF
-    gcc -shared -o "$SHIM_SO" "$SHIM_DIR/glibc235_shim.c" -lm
-    rm "$SHIM_DIR/glibc235_shim.c"
+double __wrap_hypot(double x, double y) { return hypot(x, y); }
+float __wrap_hypotf(float x, float y) { return hypotf(x, y); }
+CEOF
+    cat > "$SHIM_DIR/glibc235.map" << 'MEOF'
+GLIBC_2.35 {
+    global:
+        hypot;
+        hypotf;
+};
+MEOF
+    gcc -shared -o "$SHIM_SO" "$SHIM_DIR/glibc235_shim.c" \
+        -Wl,--version-script="$SHIM_DIR/glibc235.map" \
+        -Wl,-defsym,hypot=__wrap_hypot \
+        -Wl,-defsym,hypotf=__wrap_hypotf \
+        -lm
+    rm "$SHIM_DIR/glibc235_shim.c" "$SHIM_DIR/glibc235.map"
     echo "Built GLIBC 2.35 shim at $SHIM_SO"
 else
     echo "GLIBC 2.35 shim already exists, skipping build."
